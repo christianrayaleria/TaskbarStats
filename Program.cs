@@ -128,11 +128,14 @@ sealed class StatsBar : Form
     readonly Net net = new();
     readonly Batteries batteries = new();
     readonly System.Threading.Timer batteryTimer;
-    readonly Font font = new("Segoe UI", 9f);
-    readonly Font iconFont = new("Segoe Fluent Icons", 11f);
+    readonly Font font, iconFont;
     readonly ToolTip tip = new();
     readonly NotifyIcon tray;
-    readonly Color fg = Color.White;
+    readonly Graphics measure = Graphics.FromImage(new Bitmap(1, 1));
+    readonly StringFormat typo = (StringFormat)StringFormat.GenericTypographic.Clone();
+    Color fg = Color.White;
+    bool dirty = true;
+    Rectangle drawn;
     // text column = [top, bottom, widest top, widest bottom]; widest values keep the bar from jittering
     List<string[]> cols = [];
     // Segoe Fluent Icons code points: keyboard, mouse, headphones, battery
@@ -150,9 +153,13 @@ sealed class StatsBar : Form
         ShowInTaskbar = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
-        // shortcut: color-key transparency leaves dark edges around text; fine on a dark taskbar, upgrade to per-pixel alpha for light theme
-        BackColor = TransparencyKey = Color.FromArgb(1, 1, 1);
-        DoubleBuffered = true;
+        // same font and size as the Windows 11 taskbar clock (Segoe UI Variable, 12px at 100%)
+        // shortcut: sized for the DPI at startup; moving to a monitor with another scale keeps the old size until restart
+        float scale = DeviceDpi / 96f;
+        string family = FontFamily.Families.Any(f => f.Name == "Segoe UI Variable Text") ? "Segoe UI Variable Text" : "Segoe UI";
+        font = new Font(family, 12f * scale, GraphicsUnit.Pixel);
+        iconFont = new Font("Segoe Fluent Icons", 15f * scale, GraphicsUnit.Pixel);
+        typo.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces | StringFormatFlags.NoWrap;
 
         var menu = new ContextMenuStrip();
         var startup = new ToolStripMenuItem("Start with Windows") { CheckOnClick = true, Enabled = Installer.IsInstalledCopy };
@@ -192,7 +199,7 @@ sealed class StatsBar : Form
 
     protected override CreateParams CreateParams
     {
-        get { var cp = base.CreateParams; cp.ExStyle |= 0x80 /*TOOLWINDOW*/ | 0x08000000 /*NOACTIVATE*/; return cp; }
+        get { var cp = base.CreateParams; cp.ExStyle |= 0x80 /*TOOLWINDOW*/ | 0x08000000 /*NOACTIVATE*/ | 0x80000 /*LAYERED*/; return cp; }
     }
 
     void Tick()
@@ -215,8 +222,11 @@ sealed class StatsBar : Form
         if (s.CpuTemp == null) tipText += "\nCPU temp / watts unavailable (PawnIO driver not loaded)";
         if (tip.GetToolTip(this) != tipText) tip.SetToolTip(this, tipText);
 
+        // follow the taskbar theme: white text on a dark taskbar, black on a light one
+        bool light = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize")?.GetValue("SystemUsesLightTheme") is 1;
+        fg = light ? Color.Black : Color.White;
+        dirty = true;
         Place();
-        Invalidate();
     }
 
     void Place()
@@ -231,43 +241,73 @@ sealed class StatsBar : Form
 
         var notify = Native.FindWindowEx(tray, 0, "TrayNotifyWnd", null);
         int right = notify != 0 && Native.GetWindowRect(notify, out var nr) && nr.Right > nr.Left ? nr.Left : tb.Right - 300;
-        int width = DrawColumns(null);
+        int h = tb.Bottom - tb.Top, w = DrawColumns(null, h);
+        var r = new Rectangle(right - w - 8, tb.Top, w, h);
+        if (dirty || r.Size != drawn.Size) Render(r);
         // re-asserted every tick because clicking the taskbar raises it above us
-        Native.SetWindowPos(Handle, Native.HWND_TOPMOST, right - width - 8, tb.Top, width, tb.Bottom - tb.Top, Native.SWP_NOACTIVATE);
+        Native.SetWindowPos(Handle, Native.HWND_TOPMOST, r.X, r.Y, 0, 0, Native.SWP_NOSIZE | Native.SWP_NOACTIVATE);
     }
 
+    // Draws into a transparent bitmap and hands it to Windows with per-pixel alpha, so text stays smooth on any background.
+    void Render(Rectangle r)
+    {
+        using var bmp = new Bitmap(r.Width, r.Height, System.Drawing.Imaging.PixelFormat.Format32bppArgb);
+        using (var g = Graphics.FromImage(bmp))
+        {
+            g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit; // grayscale, like the taskbar clock
+            DrawColumns(g, r.Height);
+        }
+        nint screen = Native.GetDC(0), mem = Native.CreateCompatibleDC(screen), hbmp = bmp.GetHbitmap(Color.FromArgb(0)), old = Native.SelectObject(mem, hbmp);
+        try
+        {
+            var pos = new Native.POINT { X = r.X, Y = r.Y };
+            var size = new Native.SIZE { W = r.Width, H = r.Height };
+            var src = new Native.POINT();
+            var blend = new Native.BLENDFUNCTION { SourceConstantAlpha = 255, AlphaFormat = 1 /*AC_SRC_ALPHA*/ };
+            Native.UpdateLayeredWindow(Handle, screen, ref pos, ref size, mem, ref src, 0, ref blend, 2 /*ULW_ALPHA*/);
+        }
+        finally
+        {
+            Native.SelectObject(mem, old);
+            Native.DeleteObject(hbmp);
+            Native.DeleteDC(mem);
+            Native.ReleaseDC(0, screen);
+        }
+        drawn = r;
+        dirty = false;
+    }
+
+    int TextWidth(string s, Font f) => (int)Math.Ceiling(measure.MeasureString(s, f, PointF.Empty, typo).Width);
+
     // Measures (g == null) or draws all columns; returns total width.
-    int DrawColumns(Graphics? g)
+    int DrawColumns(Graphics? g, int h)
     {
         const int gap = 18;
-        int x = 4, h = Height, lh = font.Height;
-        var flags = TextFormatFlags.NoPadding | TextFormatFlags.SingleLine;
+        int x = 4, lh = (int)Math.Ceiling(font.GetHeight());
+        using var brush = new SolidBrush(fg);
         foreach (var c in cols)
         {
             if (c.Length == 2) // battery: icon + %
             {
-                var iw = TextRenderer.MeasureText(c[0], iconFont, Size.Empty, flags).Width;
-                var tw = TextRenderer.MeasureText("100%", font, Size.Empty, flags).Width;
+                int iw = TextWidth(c[0], iconFont), tw = TextWidth("100%", font);
                 if (g != null)
                 {
-                    TextRenderer.DrawText(g, c[0], iconFont, new Rectangle(x, 0, iw, h), fg, flags | TextFormatFlags.VerticalCenter);
-                    TextRenderer.DrawText(g, c[1], font, new Rectangle(x + iw + 6, 0, tw, h), fg, flags | TextFormatFlags.VerticalCenter);
+                    g.DrawString(c[0], iconFont, brush, x, (h - iconFont.GetHeight()) / 2, typo);
+                    g.DrawString(c[1], font, brush, x + iw + 6, (h - lh) / 2f, typo);
                 }
                 x += iw + 6 + tw + gap;
                 continue;
             }
-            int w = c.Max(t => TextRenderer.MeasureText(t, font, Size.Empty, flags).Width);
+            int w = c.Max(t => TextWidth(t, font));
             if (g != null)
             {
-                TextRenderer.DrawText(g, c[0], font, new Point(x, h / 2 - lh), fg, flags);
-                TextRenderer.DrawText(g, c[1], font, new Point(x, h / 2), fg, flags);
+                g.DrawString(c[0], font, brush, x, h / 2f - lh, typo);
+                g.DrawString(c[1], font, brush, x, h / 2f, typo);
             }
             x += w + gap;
         }
-        return x - gap + 4;
+        return Math.Max(1, x - gap + 4);
     }
-
-    protected override void OnPaint(PaintEventArgs e) => DrawColumns(e.Graphics);
 
     protected override void OnFormClosed(FormClosedEventArgs e)
     {

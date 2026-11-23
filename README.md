@@ -106,7 +106,7 @@ A device only appears if it can report its battery. Devices that can't report ar
 - Windows 10 or 11, 64-bit (not ARM).
 - AMD or Intel processors; AMD, NVIDIA or Intel graphics. Tested on AMD Ryzen 7 7800X3D + Radeon RX 7800 XT. On other hardware, any reading it can't find shows "—".
 - Shows on the main monitor's taskbar, at the bottom of the screen.
-- Made for a dark taskbar. On a light taskbar the text edges look rough.
+- Uses the same font as the Windows 11 taskbar, and switches between white and black text to match a dark or light taskbar.
 - Opening it from the Start menu asks for admin each time. Starting with Windows doesn't.
 
 ---
