@@ -56,7 +56,7 @@ Other things worth knowing:
 - **No internet.** The app never sends or downloads anything.
 - **Read-only.** It only *reads* temperatures, usage and battery levels. It never changes fan speeds, clock speeds, voltages or device settings.
 - **Light.** It uses about 0.2% CPU and 30 MB of memory.
-- **Open source.** Everything it does is in this repository, and you can build it yourself.
+- **Open source.** Everything it does is in this repository, so you can check it yourself.
 
 ### Why does it ask for admin?
 
@@ -108,38 +108,6 @@ A device only appears if it can report its battery. Devices that can't report ar
 - Shows on the main monitor's taskbar, at the bottom of the screen.
 - Made for a dark taskbar. On a light taskbar the text edges look rough.
 - Opening it from the Start menu asks for admin each time. Starting with Windows doesn't.
-
----
-
-## For developers
-
-**Verify a download:** the v1.2.0 `TaskbarStats-Setup.exe` has SHA256
-`5CA283C6F6E4D402B345437374F891393F76212A2C25C3356C7A3E603920A5E0`.
-
-**Build** (needs the .NET 8 SDK):
-
-```powershell
-dotnet publish -c Release -o publish
-```
-
-- This produces `publish\TaskbarStats.exe`. Rename it to `TaskbarStats-Setup.exe` for a release.
-- The same exe is the installer and the app: it installs itself when run from anywhere except `Program Files`.
-- The PawnIO setup isn't stored in this repo. The build downloads the official PawnIO 2.2.0 setup and stops if its SHA256 doesn't match `1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032`.
-- Raise `<Version>` in `TaskbarStats.csproj` for every release. The installer uses it to decide whether to update.
-
-**Command-line options:** `--run` (run without installing), `--uninstall`, `--probe` (writes every detected sensor and battery to `probe.txt`), `--selftest`.
-
-**Files:**
-
-| File | What it does |
-|---|---|
-| `Program.cs` | Reads the sensors and draws the stats on the taskbar, plus the tray icon menu |
-| `Batteries.cs` | Reads device batteries (Logitech, Bluetooth, standard USB) |
-| `Installer.cs` | Install, update, uninstall and start-with-Windows |
-| `Native.cs` | Windows calls used to find the taskbar |
-| `Probe.cs` | The `--probe` diagnostic report |
-| `app.manifest` | Asks Windows for admin rights |
-| `app.ico`, `make-icon.ps1` | The icon, and the script that draws it |
 
 ---
 
