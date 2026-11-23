@@ -1,145 +1,150 @@
+<p align="center"><img src="app.ico" width="64" alt=""></p>
+
 # TaskbarStats
 
-A small Windows app that shows live system stats directly on the taskbar, next to the system tray:
+See your PC's temperatures, usage and battery levels **right on the Windows taskbar**, without opening any app.
 
 ```
 CPU 64°C   GPU 44°C   ↓ 14.6 KB/s    RAM 69%          CPU 53 W   🖱 69%
 CPU 9%     GPU 19%    ↑ 15.8 KB/s    21.5 / 31.1 GB   GPU 80 W
 ```
 
-| Shown | Where it comes from |
+| It shows | Meaning |
 |---|---|
-| CPU temperature, usage, power (W) | LibreHardwareMonitor, through the PawnIO driver |
-| GPU temperature, usage, power (W) | LibreHardwareMonitor (AMD, NVIDIA, Intel). The dedicated card is picked automatically over integrated graphics |
-| Download / upload speed | Windows network counters, on adapters that have an internet gateway |
-| RAM usage % and used / total GB | Windows memory counters |
-| Device batteries % (mouse, keyboard, headset, ...) | One icon + % per device that reports a battery. Devices that can't report simply don't appear. Hover over the bar to see each device's name |
+| CPU 64°C / 9% | Processor temperature and how busy it is |
+| GPU 44°C / 19% | Graphics card temperature and how busy it is |
+| ↓ ↑ | Download and upload speed |
+| RAM | Memory in use |
+| CPU / GPU W | How much power the processor and graphics card are drawing |
+| 🖱 ⌨ 🎧 | Battery level of wireless devices that report it |
 
-**Which devices can show a battery:**
+---
 
-| Device | How it's read |
+## Install
+
+1. Go to **[Releases](../../releases)** and download **`TaskbarStats-Setup.exe`**.
+2. Run it. If Windows shows *"Windows protected your PC"*, click **More info → Run anyway**. This appears because the app isn't signed with a paid certificate.
+3. Click **Yes** on the admin prompt, then **Install**.
+
+That's it. The stats appear on your taskbar, and the app starts automatically with Windows (you can untick this during install).
+
+**Updating:** download the newer `TaskbarStats-Setup.exe` and run it. It replaces the old version and restarts by itself. If you already have that version, it just tells you so.
+
+**Uninstalling:** **Settings → Apps → Installed apps → TaskbarStats → Uninstall**. Everything it added is removed.
+
+---
+
+## Using it
+
+Everything is in the **TaskbarStats icon** in the hidden-icons area (the **^** arrow next to the clock). Right-click it:
+
+- **Show**: pick which stats appear (CPU, GPU, download/upload, RAM, power, device batteries).
+- **Start with Windows**: on or off.
+- **Exit**
+
+Other things worth knowing:
+
+- Hover over the stats to see the full name of each battery device.
+- Right-clicking the stats themselves does nothing, on purpose.
+- If your taskbar auto-hides, the stats hide and appear with it.
+- The stats hide during fullscreen games and videos.
+
+---
+
+## Is it safe?
+
+- **No internet.** The app never sends or downloads anything.
+- **Read-only.** It only *reads* temperatures, usage and battery levels. It never changes fan speeds, clock speeds, voltages or device settings.
+- **Light.** It uses about 0.2% CPU and 30 MB of memory.
+- **Open source.** Everything it does is in this repository, and you can build it yourself.
+
+### Why does it ask for admin?
+
+Windows doesn't let normal apps read **CPU temperature and CPU power**. Every monitoring tool (HWiNFO, Ryzen Master, FanControl and others) needs a small helper **driver** for this.
+
+TaskbarStats uses **PawnIO**, the driver that LibreHardwareMonitor and FanControl use:
+- It is digitally signed.
+- It works with Windows security features (Secure Boot, Memory Integrity) turned on.
+- It replaced an older driver that Microsoft Defender flags as unsafe.
+
+The installer adds PawnIO only if it isn't already on your PC. Uninstalling TaskbarStats removes PawnIO too, unless another app had installed it first.
+
+Don't want a driver at all? Uninstall **PawnIO** from Installed apps. TaskbarStats keeps working; CPU temperature and CPU power just show **"—"**.
+
+---
+
+## What gets installed
+
+| What | Where |
 |---|---|
-| Logitech wireless mice, keyboards, headsets on a LIGHTSPEED / Unifying / Bolt receiver | Logitech's HID++ protocol (read-only). Shows the real name, e.g. "PRO X 2". Several devices on one receiver all appear |
-| Bluetooth devices that show a battery % in Windows Settings | The battery level Windows already stores for the device |
-| USB / 2.4 GHz devices that use the standard HID "Battery Strength" report | Read-only standard HID report |
-| Most gaming / enthusiast 2.4 GHz keyboards and mice from other brands (e.g. HERO 68 HE) | **Not possible.** Each brand uses its own unpublished protocol |
+| The app | `C:\Program Files\TaskbarStats` |
+| An entry in Installed apps (with Uninstall) | Windows Settings |
+| A Start menu shortcut | Start menu |
+| Start with Windows *(if ticked)* | Task Scheduler, task named `TaskbarStats` |
+| PawnIO driver *(only if missing)* | `C:\Program Files\PawnIO` |
+| Your **Show** choices | `HKEY_CURRENT_USER\Software\TaskbarStats` |
 
-Only the Logitech path has been tested on real hardware. The Bluetooth and standard-HID paths follow the Windows and USB specifications but haven't been tried with a device.
-
-Behaviour:
-
-- Updates once per second. Batteries are checked every 30 seconds, and newly connected Logitech devices are picked up within about 5 minutes.
-- Follows an auto-hide taskbar: it slides in when the taskbar shows and hides when the taskbar hides.
-- Hides itself during fullscreen games, videos and presentations.
-- Right-clicking the stats on the taskbar does nothing on purpose. All options are on the **TaskbarStats tray icon** in the **^** hidden-icons area. Right-click it for:
-  - **Show**: tick or untick each section (CPU, GPU, Download / upload, RAM, Power, Device batteries). The menu stays open so you can change several at once. Your choices are saved and kept across restarts and updates. If you untick everything, the bar hides.
-  - **Start with Windows**
-  - **Exit**
+Nothing else: no background services of its own, no updater, no tracking.
 
 ---
 
-## What the installer does
+## Which device batteries can it show?
 
-Download `TaskbarStats-Setup.exe` from the **Releases** page. Running it asks for admin (UAC), then shows one dialog: **Install / Cancel**, with a **Start with Windows** checkbox.
+A device only appears if it can report its battery. Devices that can't report are simply left out.
 
-When you click **Install**, it makes exactly these changes:
-
-| # | Change | Location |
-|---|---|---|
-| 1 | Copies the app (one exe) | `C:\Program Files\TaskbarStats\TaskbarStats.exe` |
-| 2 | Adds an entry to the Apps list, so it appears in **Settings → Apps → Installed apps** with an Uninstall button | `HKLM\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\TaskbarStats` |
-| 3 | Adds a Start menu shortcut | `C:\ProgramData\Microsoft\Windows\Start Menu\Programs\TaskbarStats.lnk` |
-| 4 | *(Only if "Start with Windows" is ticked)* Adds a scheduled task that starts the app at login with admin rights, so there's no UAC prompt every boot | Task Scheduler → `TaskbarStats` |
-| 5 | *(Only if not already present)* Installs the **PawnIO** driver silently, from the official setup bundled inside the exe | `C:\Program Files\PawnIO`, and its own entry in Installed apps |
-
-Nothing else is installed. There are no services of its own, no browser extensions, no background updater, and no telemetry.
-Your **Show** choices are stored per user in `HKCU\Software\TaskbarStats`.
-
-**Running the setup when TaskbarStats is already installed:**
-
-- **Older version installed:** it updates without asking. It closes the running copy, replaces the exe, keeps your Start-with-Windows choice and starts the new version, then tells you which version it updated from and to.
-- **Same or newer version installed:** it changes nothing and tells you that version is already installed.
-
-## What uninstalling removes
-
-**Settings → Apps → Installed apps → TaskbarStats → Uninstall** removes:
-
-- The app and its `Program Files` folder
-- The Apps-list entry
-- The Start menu shortcut
-- The startup task
-- **PawnIO**, but only if this installer was the one that installed it. If PawnIO was already on the PC (for example from FanControl or LibreHardwareMonitor), it is left alone so those apps keep working.
-
----
-
-## Why it's safe
-
-**It doesn't use the internet.** The app never sends or downloads anything. The network speed column only reads Windows' own byte counters. The PawnIO setup is built into the exe, so installing it needs no download either.
-
-**It only reads, never writes, hardware settings.** No fan curves, no overclocking, no voltage changes. It reads temperature, load and power sensors, nothing more.
-
-**The battery checks are read-only.**
-- For Logitech devices, the app sends only the HID++ "which features do you have?", "what is your name/type?" and "what is your battery level?" queries, the same ones Logitech G HUB uses. It never sends configuration commands.
-- Bluetooth batteries are read from what Windows already stores. The devices aren't contacted.
-- Other USB devices are only read if they declare the standard battery report, and only that report is requested.
-- Brand-specific protocols (used by many gaming keyboards) are never touched.
-
-**Why it needs admin and a driver.** Windows doesn't let normal programs read CPU temperature or CPU power. That data sits in CPU registers that only a kernel driver can reach. Every hardware monitor (HWiNFO, LibreHardwareMonitor, FanControl, Ryzen Master) needs a driver for this. TaskbarStats uses **PawnIO** because:
-
-- It is **digitally signed** (publisher: namazso) and loads with Windows' driver signature enforcement and Secure Boot / HVCI enabled.
-- It is the driver **LibreHardwareMonitor** and **FanControl** moved to in 2025. Their old driver, WinRing0, had a known security hole and is flagged by Microsoft Defender.
-- It only runs small, signed modules for specific jobs, such as reading AMD/Intel CPU sensors, instead of giving programs raw access to memory and hardware.
-- The bundled copy is the official **PawnIO 2.2.0** setup. It is byte-for-byte identical to the one in the Microsoft winget catalog:
-  `SHA256 1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032`
-
-Honest caveat: any kernel driver runs with the highest trust on the PC. PawnIO is the most locked-down option available for this, but if you don't want any driver, uninstall PawnIO from Installed apps. TaskbarStats keeps working and shows **"—"** for CPU temperature and CPU watts; everything else still works.
-
-**The source code is in this repository.** Everything the exe does is in the files listed below, and you can rebuild the exe yourself (see *Building*).
-
-**It's light.** Measured on a Ryzen 7 7800X3D: about **0.2 % CPU** and about **30 MB RAM**.
-
----
-
-## Things to know
-
-- **SmartScreen warning:** the exe isn't code-signed (that needs a paid certificate), so the first run shows *"Windows protected your PC"*. Click **More info → Run anyway**. Compare the exe's hash with the one below if you want to be sure it's the file built here.
-- **Size (about 74 MB):** the whole .NET runtime is inside, so nothing else needs to be installed.
-- **UAC when starting it by hand:** opening it from the Start menu asks for admin every time, because CPU sensors need it. The startup task starts it without asking.
-- **Supported:** Windows 10/11 x64 with AMD or Intel CPUs and AMD, NVIDIA or Intel GPUs. It has only been tested on AMD (Ryzen 7 7800X3D + RX 7800 XT); on other hardware, any sensor it can't find shows "—".
-- **Not supported:** batteries of devices that only use a brand-specific protocol (such as the HERO 68 HE), ARM PCs, taskbars on a second monitor, taskbars at the top or side of the screen, and light taskbar themes (text edges look dark).
-
-`TaskbarStats-Setup.exe` from the v1.2.0 release, SHA256:
-`5CA283C6F6E4D402B345437374F891393F76212A2C25C3356C7A3E603920A5E0`
-
----
-
-## Files
-
-| File | Purpose |
+| Device | Works? |
 |---|---|
-| `Program.cs` | Entry point, sensor reading, network speed, and the taskbar bar with its tray icon |
-| `Installer.cs` | Install, uninstall and the startup task |
-| `Batteries.cs` | Read-only battery readers: Logitech HID++, Bluetooth (via Windows) and standard HID |
-| `Native.cs` | The few Windows API calls used to find and sit next to the taskbar |
-| `Probe.cs` | Diagnostic dump of all sensors (`TaskbarStats.exe --probe` → `probe.txt`) |
-| `app.manifest` | Asks Windows for admin rights |
-| `app.ico`, `make-icon.ps1` | The app icon and the script that draws it |
-| `.gitignore` | Keeps build output and the PawnIO setup out of git |
-| `TaskbarStats.csproj` | Build settings: one self-contained exe |
+| Logitech wireless mice, keyboards and headsets (LIGHTSPEED, Unifying, Bolt receivers) | ✅ Yes, tested |
+| Bluetooth devices that show a battery % in Windows Settings | ✅ Should work (not yet tested on a real device) |
+| USB / 2.4 GHz devices using the standard USB battery report | ✅ Should work (not yet tested on a real device) |
+| Most gaming keyboards and mice from other brands | ❌ No. Each brand keeps its battery protocol private |
 
-## Building
+---
 
-Requires the .NET 8 SDK. From this folder:
+## Requirements and limits
+
+- Windows 10 or 11, 64-bit (not ARM).
+- AMD or Intel processors; AMD, NVIDIA or Intel graphics. Tested on AMD Ryzen 7 7800X3D + Radeon RX 7800 XT. On other hardware, any reading it can't find shows "—".
+- Shows on the main monitor's taskbar, at the bottom of the screen.
+- Made for a dark taskbar. On a light taskbar the text edges look rough.
+- Opening it from the Start menu asks for admin each time. Starting with Windows doesn't.
+
+---
+
+## For developers
+
+**Verify a download:** the v1.2.0 `TaskbarStats-Setup.exe` has SHA256
+`5CA283C6F6E4D402B345437374F891393F76212A2C25C3356C7A3E603920A5E0`.
+
+**Build** (needs the .NET 8 SDK):
 
 ```powershell
 dotnet publish -c Release -o publish
 ```
 
-The first build downloads the official PawnIO 2.2.0 setup from its GitHub release and refuses to build if its SHA256 doesn't match the one in `TaskbarStats.csproj`. The PawnIO setup is not stored in this repository. The result is `publish\TaskbarStats.exe`; rename it to `TaskbarStats-Setup.exe` for a release. Raise `<Version>` in `TaskbarStats.csproj` for every release, because the installer uses it to decide whether to update. The exe is both the installer and the app: run it from anywhere and it installs. The copy in `Program Files` runs as the app.
+- This produces `publish\TaskbarStats.exe`. Rename it to `TaskbarStats-Setup.exe` for a release.
+- The same exe is the installer and the app: it installs itself when run from anywhere except `Program Files`.
+- The PawnIO setup isn't stored in this repo. The build downloads the official PawnIO 2.2.0 setup and stops if its SHA256 doesn't match `1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032`.
+- Raise `<Version>` in `TaskbarStats.csproj` for every release. The installer uses it to decide whether to update.
 
-Command-line switches:
+**Command-line options:** `--run` (run without installing), `--uninstall`, `--probe` (writes every detected sensor and battery to `probe.txt`), `--selftest`.
 
-- `--uninstall`: remove everything (this is what the Apps list runs)
-- `--run`: run the app without installing it
-- `--probe`: write all detected sensors to `probe.txt`
-- `--selftest`: run the built-in checks and write `selftest.txt`
+**Files:**
+
+| File | What it does |
+|---|---|
+| `Program.cs` | Reads the sensors and draws the stats on the taskbar, plus the tray icon menu |
+| `Batteries.cs` | Reads device batteries (Logitech, Bluetooth, standard USB) |
+| `Installer.cs` | Install, update, uninstall and start-with-Windows |
+| `Native.cs` | Windows calls used to find the taskbar |
+| `Probe.cs` | The `--probe` diagnostic report |
+| `app.manifest` | Asks Windows for admin rights |
+| `app.ico`, `make-icon.ps1` | The icon, and the script that draws it |
+
+---
+
+## Credits
+
+- Made by Christian Ray Aleria.
+- Sensor readings: [LibreHardwareMonitor](https://github.com/LibreHardwareMonitor/LibreHardwareMonitor)
+- CPU sensor access: [PawnIO](https://pawnio.eu/) driver
