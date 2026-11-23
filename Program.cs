@@ -153,10 +153,10 @@ sealed class StatsBar : Form
         ShowInTaskbar = false;
         TopMost = true;
         StartPosition = FormStartPosition.Manual;
-        // same font and size as the Windows 11 taskbar clock (Segoe UI Variable, 12px at 100%)
+        // same font and size as the Windows 11 taskbar clock: the "Small" optical cut of Segoe UI Variable, 12px at 100%
         // shortcut: sized for the DPI at startup; moving to a monitor with another scale keeps the old size until restart
         float scale = DeviceDpi / 96f;
-        string family = FontFamily.Families.Any(f => f.Name == "Segoe UI Variable Text") ? "Segoe UI Variable Text" : "Segoe UI";
+        string family = FontFamily.Families.Any(f => f.Name == "Segoe UI Variable Small") ? "Segoe UI Variable Small" : "Segoe UI";
         font = new Font(family, 12f * scale, GraphicsUnit.Pixel);
         iconFont = new Font("Segoe Fluent Icons", 15f * scale, GraphicsUnit.Pixel);
         typo.FormatFlags |= StringFormatFlags.MeasureTrailingSpaces | StringFormatFlags.NoWrap;
@@ -255,6 +255,7 @@ sealed class StatsBar : Form
         using (var g = Graphics.FromImage(bmp))
         {
             g.TextRenderingHint = System.Drawing.Text.TextRenderingHint.AntiAliasGridFit; // grayscale, like the taskbar clock
+            g.TextContrast = 0; // fuller strokes; side-by-side with the clock this matched its weight best
             DrawColumns(g, r.Height);
         }
         nint screen = Native.GetDC(0), mem = Native.CreateCompatibleDC(screen), hbmp = bmp.GetHbitmap(Color.FromArgb(0)), old = Native.SelectObject(mem, hbmp);
