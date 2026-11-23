@@ -1,0 +1,6 @@
+bin/
+obj/
+publish/
+dist/
+# third-party driver setup: downloaded and hash-checked at build time (see TaskbarStats.csproj)
+PawnIO_setup.exe

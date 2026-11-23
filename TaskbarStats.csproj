@@ -1,0 +1,35 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <ApplicationIcon>app.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Version>1.2.0</Version>
+    <Product>TaskbarStats</Product>
+    <!-- one exe, no .NET install needed on the target PC -->
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <!-- official signed PawnIO 2.2.0 setup, SHA256 1F519A22...BA3032 (same as winget) -->
+    <EmbeddedResource Include="PawnIO_setup.exe" LogicalName="PawnIO_setup.exe" />
+  </ItemGroup>
+  <!-- PawnIO isn't committed: fetched from the official release and hash-checked before every build -->
+  <Target Name="FetchPawnIO" BeforeTargets="BeforeBuild" Condition="!Exists('$(MSBuildProjectDirectory)\PawnIO_setup.exe')">
+    <DownloadFile SourceUrl="https://github.com/namazso/PawnIO.Setup/releases/download/2.2.0/PawnIO_setup.exe" DestinationFolder="$(MSBuildProjectDirectory)" />
+  </Target>
+  <Target Name="VerifyPawnIO" AfterTargets="FetchPawnIO" BeforeTargets="BeforeBuild">
+    <GetFileHash Files="$(MSBuildProjectDirectory)\PawnIO_setup.exe">
+      <Output TaskParameter="Hash" PropertyName="PawnIOHash" />
+    </GetFileHash>
+    <Error Condition="'$(PawnIOHash)' != '1F519A22E47187F70A1379A48CA604981C4FCF694F4E65B734AAA74A9FBA3032'" Text="PawnIO_setup.exe hash mismatch ($(PawnIOHash)); delete it and rebuild." />
+  </Target>
+</Project>
